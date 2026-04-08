@@ -1,12 +1,66 @@
 # Reusable CI Complete Gate workflow
-# Milestone 7 will populate this fully.
+# HARD BLOCKER — aggregates all upstream job results into one required check.
+# The caller MUST use `if: always()` and pass `toJSON(needs)` so this gate
+# runs even when upstream jobs fail or are cancelled.
+#
+# Usage in caller:
+#   ci-complete:
+#     needs: [ai-code-review, ai-security-scan, pr-size-label, maintainer-gate]
+#     if: always()
+#     uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-ci-complete-gate.yml@main
+#     with:
+#       needs-context: ${{ toJSON(needs) }}
 name: CI Complete Gate
 
 on:
   workflow_call:
+    inputs:
+      needs-context:
+        description: "JSON-serialized needs context — pass ${{ toJSON(needs) }} from the caller"
+        type: string
+        required: true
 
 jobs:
-  placeholder:
+  gate:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Placeholder — will be built in Milestone 7"
+      - name: Evaluate upstream job results
+        env:
+          NEEDS_CONTEXT: ${{ inputs.needs-context }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const needs = JSON.parse(process.env.NEEDS_CONTEXT);
+
+            const failed = [];
+            const cancelled = [];
+            const skipped = [];
+            const succeeded = [];
+
+            for (const [job, data] of Object.entries(needs)) {
+              const result = data.result;
+              switch (result) {
+                case 'failure':   failed.push(job); break;
+                case 'cancelled': cancelled.push(job); break;
+                case 'skipped':   skipped.push(job); break;
+                case 'success':   succeeded.push(job); break;
+                default:          core.warning(`Unknown result for ${job}: ${result}`);
+              }
+            }
+
+            // ---- Summary ----
+            core.info('=== CI Complete Gate ===');
+            core.info(`Succeeded : ${succeeded.join(', ') || '(none)'}`);
+            if (skipped.length)   core.info(`Skipped   : ${skipped.join(', ')}`);
+            if (failed.length)    core.error(`Failed    : ${failed.join(', ')}`);
+            if (cancelled.length) core.error(`Cancelled : ${cancelled.join(', ')}`);
+
+            // ---- Verdict ----
+            const blockers = [...failed, ...cancelled];
+            if (blockers.length > 0) {
+              core.setFailed(
+                `CI gate blocked — ${blockers.length} job(s) did not pass: ${blockers.join(', ')}`
+              );
+            } else {
+              core.info('All required jobs passed. CI gate is open.');
+            }
