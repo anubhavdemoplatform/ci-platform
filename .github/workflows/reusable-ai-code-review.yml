@@ -1,15 +1,58 @@
 # Reusable AI Code Review workflow
-# Milestone 3 will populate this fully.
+# Posts a formal PR Review via Claude focusing on code quality, security, and breaking changes.
+# Called by consumer repos via workflow_call — always advisory, never a hard blocker.
 name: AI Code Review
 
 on:
   workflow_call:
+    inputs:
+      model:
+        description: "Anthropic model to use"
+        type: string
+        required: false
+        default: "claude-sonnet-4-20250514"
+      fallback-model:
+        description: "Fallback model if primary fails"
+        type: string
+        required: false
+        default: "claude-haiku-4-20250514"
+      max-tokens:
+        description: "Max response tokens"
+        type: string
+        required: false
+        default: "4096"
+      temperature:
+        description: "Model temperature"
+        type: string
+        required: false
+        default: "0.2"
+      custom-instructions:
+        description: "Additional review instructions appended to system prompt"
+        type: string
+        required: false
+        default: ""
     secrets:
       ANTHROPIC_API_KEY:
         required: true
 
 jobs:
-  placeholder:
+  ai-code-review:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - run: echo "Placeholder — will be built in Milestone 3"
+      - name: Run AI Code Review
+        uses: anubhavdemoplatform/ci-platform/actions/ai-agent-runner@main
+        continue-on-error: true
+        with:
+          agent-type: code-review
+          github-token: ${{ github.token }}
+          model: ${{ inputs.model }}
+          fallback-model: ${{ inputs.fallback-model }}
+          max-tokens: ${{ inputs.max-tokens }}
+          temperature: ${{ inputs.temperature }}
+          custom-instructions: ${{ inputs.custom-instructions }}
+          context-mode: pr-diff
+          output-mode: pr-review
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
