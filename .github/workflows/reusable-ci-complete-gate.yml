@@ -1,0 +1,12 @@
+# Reusable CI Complete Gate workflow
+# Milestone 7 will populate this fully.
+name: CI Complete Gate
+
+on:
+  workflow_call:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder — will be built in Milestone 7"

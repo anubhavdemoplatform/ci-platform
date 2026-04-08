@@ -1,0 +1,12 @@
+# Reusable PR Size Label workflow
+# Milestone 5 will populate this fully.
+name: PR Size Label
+
+on:
+  workflow_call:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder — will be built in Milestone 5"

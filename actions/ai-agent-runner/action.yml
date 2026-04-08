@@ -1,0 +1,57 @@
+# ai-agent-runner — Composite action that calls the Anthropic API
+# Milestone 2 will populate this fully.
+name: "AI Agent Runner"
+description: "Calls the Anthropic API with PR context and posts results back to GitHub"
+
+inputs:
+  agent-type:
+    description: "Type of agent (code-review, security-scan)"
+    required: true
+  github-token:
+    description: "GitHub token for API access"
+    required: true
+  model:
+    description: "Anthropic model to use"
+    required: false
+    default: "claude-sonnet-4-20250514"
+  fallback-model:
+    description: "Fallback model if primary fails"
+    required: false
+    default: "claude-haiku-4-20250514"
+  max-tokens:
+    description: "Max tokens for the response"
+    required: false
+    default: "4096"
+  temperature:
+    description: "Temperature for the model"
+    required: false
+    default: "0.2"
+  custom-instructions:
+    description: "Additional instructions for the AI agent"
+    required: false
+    default: ""
+  context-mode:
+    description: "What context to fetch (pr-diff, full-repo)"
+    required: false
+    default: "pr-diff"
+  output-mode:
+    description: "How to post results (pr-comment, pr-review)"
+    required: false
+    default: "pr-comment"
+  anthropic-api-key:
+    description: "Anthropic API key"
+    required: true
+
+outputs:
+  response:
+    description: "AI response text"
+  status:
+    description: "success or fallback or error"
+  token-count:
+    description: "Tokens used"
+
+runs:
+  using: "composite"
+  steps:
+    - run: echo "Placeholder — will be built in Milestone 2"
+      shell: bash

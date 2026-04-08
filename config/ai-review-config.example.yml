@@ -1,0 +1,24 @@
+# Example .github/ai-review-config.yml for consumer repos
+# Copy this file to your repo at .github/ai-review-config.yml and customize.
+
+# Minimum severity to report (low, medium, high, critical)
+severity_threshold: medium
+
+# Directories to skip during AI analysis
+skip_dirs:
+  - node_modules
+  - vendor
+  - dist
+  - build
+  - .git
+
+# Extra focus areas for the AI reviewer
+extra_focus_areas:
+  - error handling
+  - input validation
+  - API contract consistency
+
+# Maintainers who can approve PRs (used by maintainer-gate)
+maintainers:
+  - github-username-1
+  - github-username-2

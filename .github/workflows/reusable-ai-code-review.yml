@@ -1,0 +1,15 @@
+# Reusable AI Code Review workflow
+# Milestone 3 will populate this fully.
+name: AI Code Review
+
+on:
+  workflow_call:
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder — will be built in Milestone 3"

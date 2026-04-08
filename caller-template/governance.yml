@@ -1,0 +1,13 @@
+# Caller template — drop this into any consumer repo at .github/workflows/governance.yml
+# Milestone 8 will populate this fully.
+name: Governance
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder — will be built in Milestone 8"

@@ -1,0 +1,12 @@
+# Reusable Maintainer Gate workflow
+# Milestone 6 will populate this fully.
+name: Maintainer Gate
+
+on:
+  workflow_call:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Placeholder — will be built in Milestone 6"
