@@ -16,7 +16,7 @@ on:
   workflow_call:
     inputs:
       needs-context:
-        description: "JSON-serialized needs context — pass ${{ toJSON(needs) }} from the caller"
+        description: "JSON-serialized needs context from the caller (pass toJSON of needs)"
         type: string
         required: true
 
