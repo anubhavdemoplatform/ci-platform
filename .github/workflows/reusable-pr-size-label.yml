@@ -1,12 +1,115 @@
 # Reusable PR Size Label workflow
-# Milestone 5 will populate this fully.
+# Labels PRs as size/XS through size/XL based on total lines changed.
+# Called by consumer repos via workflow_call — advisory, never a hard blocker.
+#
+# Thresholds (additions + deletions):
+#   XS: 0–9 | S: 10–49 | M: 50–249 | L: 250–999 | XL: 1000+
 name: PR Size Label
 
 on:
   workflow_call:
+    inputs:
+      xs-max:
+        description: "Max lines for size/XS"
+        type: string
+        required: false
+        default: "9"
+      s-max:
+        description: "Max lines for size/S"
+        type: string
+        required: false
+        default: "49"
+      m-max:
+        description: "Max lines for size/M"
+        type: string
+        required: false
+        default: "249"
+      l-max:
+        description: "Max lines for size/L"
+        type: string
+        required: false
+        default: "999"
 
 jobs:
-  placeholder:
+  label-pr-size:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - run: echo "Placeholder — will be built in Milestone 5"
+      - name: Label PR by size
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info('No pull_request in event payload — skipping.');
+              return;
+            }
+
+            const totalLines = (pr.additions || 0) + (pr.deletions || 0);
+            core.info(`PR #${pr.number}: +${pr.additions} -${pr.deletions} = ${totalLines} lines changed`);
+
+            // Thresholds (configurable via inputs)
+            const xsMax = parseInt('${{ inputs.xs-max }}', 10);
+            const sMax  = parseInt('${{ inputs.s-max }}', 10);
+            const mMax  = parseInt('${{ inputs.m-max }}', 10);
+            const lMax  = parseInt('${{ inputs.l-max }}', 10);
+
+            let sizeLabel;
+            if (totalLines <= xsMax)      sizeLabel = 'size/XS';
+            else if (totalLines <= sMax)   sizeLabel = 'size/S';
+            else if (totalLines <= mMax)   sizeLabel = 'size/M';
+            else if (totalLines <= lMax)   sizeLabel = 'size/L';
+            else                           sizeLabel = 'size/XL';
+
+            core.info(`Assigning label: ${sizeLabel}`);
+
+            const allSizeLabels = ['size/XS', 'size/S', 'size/M', 'size/L', 'size/XL'];
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Ensure the target label exists (create if missing)
+            for (const label of allSizeLabels) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label });
+              } catch (e) {
+                if (e.status === 404) {
+                  const colors = {
+                    'size/XS': '3CBF00',
+                    'size/S':  '5D9801',
+                    'size/M':  'FBCA04',
+                    'size/L':  'E67409',
+                    'size/XL': 'D93F0B',
+                  };
+                  await github.rest.issues.createLabel({
+                    owner, repo, name: label,
+                    color: colors[label],
+                    description: `PR size: ${label.replace('size/', '')}`,
+                  });
+                  core.info(`Created missing label: ${label}`);
+                }
+              }
+            }
+
+            // Remove any existing size labels that don't match
+            const currentLabels = pr.labels.map(l => l.name);
+            for (const label of allSizeLabels) {
+              if (label !== sizeLabel && currentLabels.includes(label)) {
+                await github.rest.issues.removeLabel({
+                  owner, repo, issue_number: pr.number, name: label,
+                });
+                core.info(`Removed old label: ${label}`);
+              }
+            }
+
+            // Add the correct label if not already present
+            if (!currentLabels.includes(sizeLabel)) {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: pr.number, labels: [sizeLabel],
+              });
+              core.info(`Added label: ${sizeLabel}`);
+            } else {
+              core.info(`Label ${sizeLabel} already present`);
+            }
