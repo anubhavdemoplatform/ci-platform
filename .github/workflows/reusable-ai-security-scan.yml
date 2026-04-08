@@ -1,15 +1,95 @@
 # Reusable AI Security Scan workflow
-# Milestone 4 will populate this fully.
+# Two modes controlled by the scan-mode input:
+#   "pr"        — analyzes the PR diff, posts a PR comment (attacker mindset)
+#   "full-repo" — checks out the entire repo, files/updates a GitHub Issue
+# Called by consumer repos via workflow_call — always advisory, never a hard blocker.
 name: AI Security Scan
 
 on:
   workflow_call:
+    inputs:
+      scan-mode:
+        description: "pr (diff-based PR comment) or full-repo (weekly issue)"
+        type: string
+        required: false
+        default: "pr"
+      model:
+        description: "Anthropic model to use"
+        type: string
+        required: false
+        default: "claude-sonnet-4-20250514"
+      fallback-model:
+        description: "Fallback model if primary fails"
+        type: string
+        required: false
+        default: "claude-haiku-4-20250514"
+      max-tokens:
+        description: "Max response tokens"
+        type: string
+        required: false
+        default: "4096"
+      temperature:
+        description: "Model temperature"
+        type: string
+        required: false
+        default: "0.2"
+      custom-instructions:
+        description: "Additional security scan instructions"
+        type: string
+        required: false
+        default: ""
     secrets:
       ANTHROPIC_API_KEY:
         required: true
 
 jobs:
-  placeholder:
+  # ---------- PR mode: analyze the diff, post a PR comment ----------
+  pr-security-scan:
+    if: inputs.scan-mode == 'pr'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - run: echo "Placeholder — will be built in Milestone 4"
+      - name: Run AI Security Scan (PR diff)
+        uses: anubhavdemoplatform/ci-platform/actions/ai-agent-runner@main
+        continue-on-error: true
+        with:
+          agent-type: security-scan
+          github-token: ${{ github.token }}
+          model: ${{ inputs.model }}
+          fallback-model: ${{ inputs.fallback-model }}
+          max-tokens: ${{ inputs.max-tokens }}
+          temperature: ${{ inputs.temperature }}
+          custom-instructions: ${{ inputs.custom-instructions }}
+          context-mode: pr-diff
+          output-mode: pr-comment
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ---------- Full-repo mode: checkout repo, file a GitHub Issue ----------
+  full-repo-security-scan:
+    if: inputs.scan-mode == 'full-repo'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run AI Security Scan (full repo)
+        uses: anubhavdemoplatform/ci-platform/actions/ai-agent-runner@main
+        continue-on-error: true
+        with:
+          agent-type: security-scan
+          github-token: ${{ github.token }}
+          model: ${{ inputs.model }}
+          fallback-model: ${{ inputs.fallback-model }}
+          max-tokens: ${{ inputs.max-tokens }}
+          temperature: ${{ inputs.temperature }}
+          custom-instructions: ${{ inputs.custom-instructions }}
+          context-mode: full-repo
+          output-mode: issue
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
