@@ -1,5 +1,7 @@
 # Reusable Maintainer Gate workflow
 # HARD BLOCKER — fails the check until a maintainer from the config file has approved.
+# Auto-passes if the PR author is themselves a listed maintainer (since GitHub
+# does not allow self-approval of your own PR).
 # Maintainer list is read from .github/ai-review-config.yml in the consumer repo.
 # Triggered on pull_request_target (via caller) so it re-evaluates on every review event.
 name: Maintainer Gate
@@ -82,13 +84,22 @@ jobs:
 
             core.info(`Maintainers: ${maintainers.join(', ')}`);
 
-            // ---- 3. Fetch all reviews on this PR ----
+            // ---- 3. Auto-pass if the PR author is a listed maintainer ----
+            const prAuthor = pr.user?.login;
+            if (prAuthor && maintainers.includes(prAuthor)) {
+              core.info(
+                `PR author "${prAuthor}" is a listed maintainer — auto-approved.`
+              );
+              return;
+            }
+
+            // ---- 4. Fetch all reviews on this PR ----
             const reviews = await github.paginate(
               github.rest.pulls.listReviews,
               { owner, repo, pull_number: pr.number, per_page: 100 }
             );
 
-            // ---- 4. Check for an approved review from a maintainer ----
+            // ---- 5. Check for an approved review from a maintainer ----
             // Only the latest review per user counts (a maintainer might
             // approve, then request changes, then approve again).
             const latestByUser = new Map();
@@ -108,7 +119,7 @@ jobs:
                 `Maintainer approval found: ${approvedMaintainers.join(', ')}`
               );
             } else {
-              const pending = maintainers.join(', ');
+              const pending = maintainers.filter(m => m !== prAuthor).join(', ');
               core.setFailed(
                 `Blocked: no maintainer has approved this PR.\n` +
                 `Requires an approving review from one of: ${pending}`
