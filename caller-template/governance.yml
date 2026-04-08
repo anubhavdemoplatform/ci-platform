@@ -1,13 +1,73 @@
-# Caller template — drop this into any consumer repo at .github/workflows/governance.yml
-# Milestone 8 will populate this fully.
+# Governance — drop this file into any consumer repo at .github/workflows/governance.yml
+# Wires up all 5 reusable workflows from the ci-platform repo.
+#
+# Triggers:
+#   pull_request_target — AI code review, AI security scan, PR size label, maintainer gate
+#   pull_request_review — re-evaluates maintainer gate when reviews are submitted
+#   schedule            — weekly full-repo AI security scan (files a GitHub Issue)
+#
+# Requirements:
+#   - Org-level secret: ANTHROPIC_API_KEY
+#   - Consumer repo config: .github/ai-review-config.yml (see ci-platform/config/ for example)
+
 name: Governance
 
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
+  schedule:
+    # Weekly security scan — every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
 
+# ────────────────────────────────────────────────────────────
+# PR-triggered jobs (pull_request_target + pull_request_review)
+# ────────────────────────────────────────────────────────────
 jobs:
-  placeholder:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Placeholder — will be built in Milestone 8"
+
+  # ── 1. AI Code Review (advisory) ──
+  ai-code-review:
+    if: github.event_name == 'pull_request_target'
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-ai-code-review.yml@main
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ── 2. AI Security Scan — PR mode (advisory) ──
+  ai-security-scan:
+    if: github.event_name == 'pull_request_target'
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-ai-security-scan.yml@main
+    with:
+      scan-mode: pr
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ── 3. PR Size Label (advisory) ──
+  pr-size-label:
+    if: github.event_name == 'pull_request_target'
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-pr-size-label.yml@main
+
+  # ── 4. Maintainer Gate (hard blocker) ──
+  maintainer-gate:
+    if: github.event_name == 'pull_request_target' || github.event_name == 'pull_request_review'
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-maintainer-gate.yml@main
+
+  # ── 5. CI Complete Gate (hard blocker — aggregates all above) ──
+  ci-complete:
+    needs: [ai-code-review, ai-security-scan, pr-size-label, maintainer-gate]
+    if: always()
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-ci-complete-gate.yml@main
+    with:
+      needs-context: ${{ toJSON(needs) }}
+
+# ────────────────────────────────────────────────────────────
+# Scheduled job (weekly full-repo security scan)
+# ────────────────────────────────────────────────────────────
+
+  weekly-security-scan:
+    if: github.event_name == 'schedule'
+    uses: anubhavdemoplatform/ci-platform/.github/workflows/reusable-ai-security-scan.yml@main
+    with:
+      scan-mode: full-repo
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
