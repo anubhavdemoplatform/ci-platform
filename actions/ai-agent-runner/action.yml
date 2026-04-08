@@ -1,5 +1,5 @@
 # ai-agent-runner — Composite action that calls the Anthropic API
-# Milestone 2 will populate this fully.
+# Fetches PR context, calls Claude, posts results back to GitHub
 name: "AI Agent Runner"
 description: "Calls the Anthropic API with PR context and posts results back to GitHub"
 
@@ -35,7 +35,7 @@ inputs:
     required: false
     default: "pr-diff"
   output-mode:
-    description: "How to post results (pr-comment, pr-review)"
+    description: "How to post results (pr-comment, pr-review, issue)"
     required: false
     default: "pr-comment"
   anthropic-api-key:
@@ -45,13 +45,38 @@ inputs:
 outputs:
   response:
     description: "AI response text"
+    value: ${{ steps.run-agent.outputs.response }}
   status:
     description: "success or fallback or error"
+    value: ${{ steps.run-agent.outputs.status }}
   token-count:
     description: "Tokens used"
+    value: ${{ steps.run-agent.outputs.token-count }}
 
 runs:
   using: "composite"
   steps:
-    - run: echo "Placeholder — will be built in Milestone 2"
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - name: Copy agent script to runner temp
       shell: bash
+      run: cp "${{ github.action_path }}/agent.mjs" "$RUNNER_TEMP/agent.mjs"
+
+    - name: Run AI agent
+      id: run-agent
+      shell: bash
+      env:
+        INPUT_AGENT_TYPE: ${{ inputs.agent-type }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_FALLBACK_MODEL: ${{ inputs.fallback-model }}
+        INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_TEMPERATURE: ${{ inputs.temperature }}
+        INPUT_CUSTOM_INSTRUCTIONS: ${{ inputs.custom-instructions }}
+        INPUT_CONTEXT_MODE: ${{ inputs.context-mode }}
+        INPUT_OUTPUT_MODE: ${{ inputs.output-mode }}
+        INPUT_ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+      run: node "$RUNNER_TEMP/agent.mjs"
